@@ -60,15 +60,15 @@ type ScanLineReader interface {
 // ScanLineReader. If the filter can not support src ScanLineReader, it returns
 // an error.
 type Filter interface {
-	Filter(ctx context.Context, src ScanLineReader) (dest ScanLineReader, err error)
+	Filter(src ScanLineReader) (dest ScanLineReader, err error)
 }
 
 // FilterFunc is a function that implements Filter interface.
-type FilterFunc func(ctx context.Context, src ScanLineReader) (dest ScanLineReader, err error)
+type FilterFunc func(src ScanLineReader) (dest ScanLineReader, err error)
 
 // Filter calls its own implementation.
-func (f FilterFunc) Filter(ctx context.Context, src ScanLineReader) (dest ScanLineReader, err error) {
-	dest, err = f(ctx, src)
+func (f FilterFunc) Filter(src ScanLineReader) (dest ScanLineReader, err error) {
+	dest, err = f(src)
 	return
 }
 
@@ -93,8 +93,8 @@ func NewSourceFilter(s Source) *SourceFilter {
 
 // Filter returns a reader to read scan lines from the source. Note that it
 // do not read from the src reader, the reader is just ignored.
-func (f *SourceFilter) Filter(ctx context.Context, _ ScanLineReader) (dest ScanLineReader, err error) {
-	dest, err = f.src.Open(ctx)
+func (f *SourceFilter) Filter(_ ScanLineReader) (dest ScanLineReader, err error) {
+	dest, err = f.src.Open()
 	return
 }
 
@@ -120,33 +120,38 @@ type FilterChain struct {
 
 // Append appends the filter f into end of the filter chain.
 func (c *FilterChain) Append(f Filter) {
-	c.chain = func(ctx context.Context, src ScanLineReader) (dest ScanLineReader, err error) {
-		chainDest, err := c.chain(ctx, src)
+	c.chain = func(src ScanLineReader) (dest ScanLineReader, err error) {
+		chainDest, err := c.chain(src)
 		if err != nil {
 			return chainDest, err
 		}
-		dest, err = f.Filter(ctx, chainDest)
+		dest, err = f.Filter(chainDest)
 		return
 	}
 }
 
+// ImageSource implements Source interface to read scan lines from image.Image
+// buffer.
+type ImageSource struct {
+	Src image.Image
+}
+
+// NewImageSource returns initialized ImageSource. It allows to read scan lines
+// from src image buffer.
 func NewImageSource(src image.Image) Source {
-	switch s := src.(type) {
+	return &ImageSource{src}
+}
+
+// Open returns initialized ScanLineReader to read from the Src.
+func (s *ImageSource) Open(ctx context.Context) (ScanLineReader, error) {
+	switch i := s.Src.(type) {
 	case *image.RGBA:
-		return &imageRGBASource{s}
-	default:
-		return nil
+		return &imageRGBAReader{i, 0}, nil
 	}
+	return nil, fmt.Errorf("the image is unsupported")
 }
 
-type imageRGBASource struct {
-	img *image.RGBA
-}
-
-func (s *imageRGBASource) Open(ctx context.Context) (image ScanLineReader, err error) {
-	return &imageRGBAReader{s.img, 0}, nil
-}
-
+// A reader to read from image.RGBA buffer.
 type imageRGBAReader struct {
 	img *image.RGBA
 	off int
@@ -172,21 +177,6 @@ func (r *imageRGBAReader) ReadScanLines(p [][]byte) (n int, err error) {
 	n = copy(p[0], r.img.Pix[r.off:])
 	r.off += n
 	return
-}
-
-type imageYCbCrReader struct {
-	img *image.YCbCr
-	off int
-}
-
-func (r *imageYCbCrReader) Config() *Config {
-	w, h := r.img.Bounds().Dx(), r.img.Bounds().Dy()
-	return &Config{
-		PlaneWidth:  []int{w},
-		PlaneHeight: []int{h},
-		Stride:      []int{r.img.YStride, r.img.CStride, r.img.CStride},
-		PixelFormat: RGBA32,
-	}
 }
 
 // WriteImage reads from the src and returns an image.
