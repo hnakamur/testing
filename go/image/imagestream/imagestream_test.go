@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/pixiv/cobalt-thumber/image"
+	"github.com/harukasan/testing/go/image/imagestream"
 )
 
 func makeTestRGBA() *image.RGBA {
@@ -25,11 +25,11 @@ func makeTestRGBA() *image.RGBA {
 func TestRGBAtoRGBA(t *testing.T) {
 	s := makeTestRGBA()
 	srcFilter := imagestream.NewSourceFilter(imagestream.NewImageSource(s))
-	dest, err := srcFilter.Filter(context.Background(), nil)
+	dest, err := srcFilter.Filter(nil)
 	if err != nil {
 		t.Fatalf("got error on %v", err)
 	}
-	d, err := imagestream.WriteImage(dest)
+	d, err := imagestream.WriteImage(context.Background(), dest)
 	if err != nil {
 		t.Fatalf("got error on %v", err)
 	}

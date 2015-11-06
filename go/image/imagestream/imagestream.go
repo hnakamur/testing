@@ -52,7 +52,7 @@ type ScanLineReader interface {
 	//
 	// ReadScanLines returns an error in the same manner of io.Reader.
 	// When ReadScanLines reads to the end of image, it returns io.EOF.
-	ReadScanLines(p [][]byte) (n int, err error)
+	ReadScanLines(ctx context.Context, p [][]byte) (n int, err error)
 }
 
 // Filter is the interface of filter to reading scan lines of the image planes.
@@ -77,7 +77,7 @@ func (f FilterFunc) Filter(src ScanLineReader) (dest ScanLineReader, err error) 
 // Open returns the reader which reads scan lines from the image source. If it
 // failed to open the any resource or read the data, return an error.
 type Source interface {
-	Open(ctx context.Context) (image ScanLineReader, err error)
+	Open() (image ScanLineReader, err error)
 }
 
 // SourceFilter implements filter interface. It can use the first of filter
@@ -143,7 +143,7 @@ func NewImageSource(src image.Image) Source {
 }
 
 // Open returns initialized ScanLineReader to read from the Src.
-func (s *ImageSource) Open(ctx context.Context) (ScanLineReader, error) {
+func (s *ImageSource) Open() (ScanLineReader, error) {
 	switch i := s.Src.(type) {
 	case *image.RGBA:
 		return &imageRGBAReader{i, 0}, nil
@@ -167,7 +167,7 @@ func (r *imageRGBAReader) Config() *Config {
 	}
 }
 
-func (r *imageRGBAReader) ReadScanLines(p [][]byte) (n int, err error) {
+func (r *imageRGBAReader) ReadScanLines(ctx context.Context, p [][]byte) (n int, err error) {
 	if r.off >= len(r.img.Pix) {
 		if len(p) == 0 {
 			return
@@ -180,22 +180,22 @@ func (r *imageRGBAReader) ReadScanLines(p [][]byte) (n int, err error) {
 }
 
 // WriteImage reads from the src and returns an image.
-func WriteImage(src ScanLineReader) (image.Image, error) {
+func WriteImage(ctx context.Context, src ScanLineReader) (image.Image, error) {
 	config := src.Config()
 	switch config.PixelFormat {
 	case RGBA32:
-		return encodeToRGBA(src)
+		return encodeToRGBA(ctx, src)
 	default:
 		return nil, fmt.Errorf("unsupported pixel format: %v", config.PixelFormat)
 	}
 }
 
-func encodeToRGBA(src ScanLineReader) (*image.RGBA, error) {
+func encodeToRGBA(ctx context.Context, src ScanLineReader) (*image.RGBA, error) {
 	w, h := src.Config().PlaneWidth[0], src.Config().PlaneHeight[0]
 	dest := image.NewRGBA(image.Rect(0, 0, w, h))
 	off := 0
 	for {
-		n, err := src.ReadScanLines([][]byte{dest.Pix[off:]})
+		n, err := src.ReadScanLines(ctx, [][]byte{dest.Pix[off:]})
 		if err != nil {
 			if err == io.EOF {
 				break
