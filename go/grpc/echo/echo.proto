@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package echo;
+
+message Key {
+  string name = 1;
+}
+
+message Message {
+  string msg = 1;
+}
+
+service Echo {
+  rpc Echo(Key Message) returns (Message) {}
+  rpc Stream(Message) returns (stream Message) {}
+}
