@@ -1,5 +1,4 @@
 #!/bin/bash
 
 (./write-go | ./read.sh) &
-pgrep -f 'read.sh' | xargs kill
-
+pgrep -f 'read.sh' | xargs kill -KILL
