@@ -103,3 +103,24 @@ func BenchmarkLookupFunc(b *testing.B) {
 	}
 	_ = a
 }
+
+func BenchmarkMapFunc(b *testing.B) {
+	v := map[string]func() (v byte){
+		"0": func() (v byte) { return 'a' },
+		"1": func() (v byte) { return 'b' },
+		"2": func() (v byte) { return 'c' },
+		"3": func() (v byte) { return 'd' },
+		"4": func() (v byte) { return 'e' },
+		"5": func() (v byte) { return 'f' },
+		"6": func() (v byte) { return 'g' },
+		"7": func() (v byte) { return 'h' },
+		"8": func() (v byte) { return 'i' },
+		"9": func() (v byte) { return 'j' },
+	}
+	var a byte
+	for i := 0; i < b.N; i++ {
+		a = v[strconv.Itoa(i%10)]()
+	}
+	_ = a
+}
+
