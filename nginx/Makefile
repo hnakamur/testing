@@ -7,6 +7,10 @@ redis:
 	docker build . -t testing_nginx
 	docker run -it --rm -v $(CURDIR)/redis:/etc/nginx testing_nginx sh 
 
+redis_bench:
+	docker build . -t testing_nginx
+	docker run -it --rm -v $(CURDIR)/redis_bench:/etc/nginx testing_nginx sh 
 
 .PHONY: dynamic_cache_key \
-	redis
+	redis \
+	redis_bench
