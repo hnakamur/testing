@@ -35,3 +35,11 @@ RUN cd ./openresty-1.11.2.1 && ./configure \
 	&& make install -j4
 
 RUN mkdir -p /var/lib/nginx
+
+RUN apk add --no-cache redis
+
+RUN apk add --no-cache git
+RUN git clone https://github.com/wg/wrk \
+	&& cd wrk \
+	&& make \
+	&& cp ./wrk /usr/local/bin/wrk
